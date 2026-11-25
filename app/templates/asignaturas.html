@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Asignaturas{% endblock %}
+{% block content %}
+<h1>Asignaturas</h1>
+<form class="inline-form" method="post" action="/asignaturas">
+  <input name="codigo" placeholder="Código (ej. MAT101)" required maxlength="20">
+  <input name="nombre" placeholder="Nombre" required maxlength="120">
+  <input name="creditos" type="number" min="1" max="10" value="3" required title="Créditos">
+  <button type="submit">Agregar</button>
+</form>
+<table>
+  <thead><tr><th>Código</th><th>Nombre</th><th>Créditos</th><th></th></tr></thead>
+  <tbody>
+  {% for a in asignaturas %}
+    <tr>
+      <td>{{ a.codigo }}</td>
+      <td><a href="/asignaturas/{{ a.id }}">{{ a.nombre }}</a></td>
+      <td>{{ a.creditos }}</td>
+      <td>
+        <form method="post" action="/asignaturas/{{ a.id }}/eliminar" onsubmit="return confirm('¿Eliminar {{ a.nombre }} y sus notas?')">
+          <button class="danger" type="submit">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="muted">No hay asignaturas registradas.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

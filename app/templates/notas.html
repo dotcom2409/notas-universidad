@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Registrar notas{% endblock %}
+{% block content %}
+<h1>Registrar nota</h1>
+{% if not estudiantes or not asignaturas %}
+  <p class="muted">Necesitas al menos un <a href="/estudiantes">estudiante</a> y una <a href="/asignaturas">asignatura</a>.</p>
+{% else %}
+<form class="stack-form" method="post" action="/notas">
+  <label>Estudiante
+    <select name="estudiante_id" required>
+      {% for e in estudiantes %}<option value="{{ e.id }}">{{ e.codigo }} — {{ e.nombre }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Asignatura
+    <select name="asignatura_id" required>
+      {% for a in asignaturas %}<option value="{{ a.id }}">{{ a.codigo }} — {{ a.nombre }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Corte
+    <select name="corte" required>
+      {% for c, p in pesos.items() %}<option value="{{ c }}">Corte {{ c }} ({{ (p*100)|int }}%)</option>{% endfor %}
+    </select>
+  </label>
+  <label>Nota (0.0 – 5.0)
+    <input name="valor" type="number" step="0.1" min="0" max="5" required>
+  </label>
+  <button type="submit">Guardar nota</button>
+  <p class="muted">Si ya existe una nota para ese corte, se actualiza.</p>
+</form>
+{% endif %}
+{% endblock %}

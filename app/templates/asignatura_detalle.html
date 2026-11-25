@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ asig.nombre }}{% endblock %}
+{% block content %}
+<h1>{{ asig.nombre }}</h1>
+<p class="muted">Código {{ asig.codigo }} · {{ asig.creditos }} créditos</p>
+<div class="cards">
+  <div class="card"><span>{{ resumen.promedio if resumen.promedio is not none else '—' }}</span>Promedio del curso</div>
+  <div class="card"><span class="ok">{{ resumen.aprobados }}</span>Aprobados</div>
+  <div class="card"><span class="bad">{{ resumen.reprobados }}</span>Reprobados</div>
+</div>
+<table>
+  <thead><tr><th>Estudiante</th><th>C1</th><th>C2</th><th>C3</th><th>Definitiva</th></tr></thead>
+  <tbody>
+  {% for f in filas %}
+    <tr>
+      <td><a href="/estudiantes/{{ f.estudiante.id }}">{{ f.estudiante.nombre }}</a></td>
+      {% for c in [1,2,3] %}<td>{{ f.cortes.get(c, '—') }}</td>{% endfor %}
+      <td>
+        {% if f.definitiva is not none %}
+          <strong class="{{ 'ok' if f.definitiva >= aprobatoria else 'bad' }}">{{ f.definitiva }}</strong>
+        {% else %}<span class="muted">Pendiente</span>{% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="muted">Sin notas registradas.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

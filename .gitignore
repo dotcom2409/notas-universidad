@@ -1,0 +1,20 @@
+# Secretos
+.env
+*.pem
+*.key
+vault_pass*
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+*.tfplan
+crash.log
+# Ansible
+ansible/inventory.ini
+*.retry
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.db

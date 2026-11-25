@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Panel general</h1>
+<div class="cards">
+  <a class="card" href="/estudiantes"><span>{{ stats.estudiantes }}</span>Estudiantes</a>
+  <a class="card" href="/asignaturas"><span>{{ stats.asignaturas }}</span>Asignaturas</a>
+  <a class="card" href="/notas"><span>{{ stats.notas }}</span>Notas registradas</a>
+</div>
+<p class="muted">Definitiva = Corte 1 ({{ (pesos[1]*100)|int }}%) + Corte 2 ({{ (pesos[2]*100)|int }}%) + Corte 3 ({{ (pesos[3]*100)|int }}%). Nota aprobatoria: {{ aprobatoria }}</p>
+<h2>Últimas notas registradas</h2>
+{% if recientes %}
+<table>
+  <thead><tr><th>Estudiante</th><th>Asignatura</th><th>Corte</th><th>Nota</th></tr></thead>
+  <tbody>
+  {% for n in recientes %}
+    <tr>
+      <td><a href="/estudiantes/{{ n.estudiante.id }}">{{ n.estudiante.nombre }}</a></td>
+      <td><a href="/asignaturas/{{ n.asignatura.id }}">{{ n.asignatura.nombre }}</a></td>
+      <td>{{ n.corte }}</td>
+      <td class="{{ 'ok' if n.valor >= aprobatoria else 'bad' }}">{{ n.valor }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="muted">Aún no hay notas. Empieza creando estudiantes y asignaturas.</p>{% endif %}
+{% endblock %}
