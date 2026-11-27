@@ -22,3 +22,4 @@ __pycache__/
 ansible/group_vars/all/infra.yml
 .terraform.lock.hcl.bak
 ansible/group_vars/all/vault.yml
+docs/Guia_Sustentacion_Notas_AWS.pdf
