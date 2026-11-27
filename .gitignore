@@ -18,3 +18,7 @@ __pycache__/
 *.pyc
 .venv/
 *.db
+# Generados por Terraform (contienen IPs/endpoints de la cuenta)
+ansible/group_vars/all/infra.yml
+.terraform.lock.hcl.bak
+ansible/group_vars/all/vault.yml

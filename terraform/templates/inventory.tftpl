@@ -1,0 +1,10 @@
+# Generado por Terraform. No editar a mano.
+[app]
+%{ for i, h in hosts ~}
+app${i + 1} ansible_host=${h.public_ip} az=${h.availability_zone}
+%{ endfor ~}
+
+[app:vars]
+ansible_user=${ssh_user}
+ansible_ssh_private_key_file=${key_path}
+ansible_python_interpreter=/usr/bin/python3

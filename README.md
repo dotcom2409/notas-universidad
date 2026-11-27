@@ -3,7 +3,7 @@
 Aplicación web para registrar estudiantes, asignaturas y notas por corte, desplegada en AWS
 con Docker, Terraform y Ansible detrás de un Application Load Balancer.
 
-> Estado: **Fase 1 completa (aplicación + Docker)**. Terraform, Ansible, diagrama y evidencias en progreso.
+> Estado: **App, Docker, Terraform y Ansible listos**. Diagrama y evidencias en progreso.
 
 ## 1. Descripción de la aplicación
 
@@ -81,10 +81,62 @@ cd app && pip install -r requirements.txt && uvicorn main:app --reload
 ```
 
 ## 3. Terraform
-_Pendiente (Fase 3)._
+
+Región: `us-east-2`. Toda la infraestructura se crea con Terraform (`terraform/`):
+
+| Archivo | Recursos |
+|---|---|
+| `network.tf` | VPC `10.0.0.0/16`, 2 subredes públicas y 2 privadas en 2 AZ, Internet Gateway, tablas de rutas |
+| `security.tf` | SG del ALB (80 público), SG de la app (8000 solo desde el ALB, 22 solo desde `admin_cidr`), SG de la BD (5432 solo desde la app) |
+| `iam.tf` | Rol de EC2 con mínimo privilegio: ECR solo lectura + SSM |
+| `ecr.tf` | Repositorio de imágenes con escaneo de vulnerabilidades |
+| `compute.tf` | 2 EC2 Ubuntu 24.04, una por AZ, IMDSv2 obligatorio, disco cifrado |
+| `alb.tf` | ALB, Target Group con health check `/health`, listener HTTP 80 |
+| `rds.tf` | PostgreSQL 16 en subredes privadas, cifrado, sin acceso público |
+| `ansible.tf` | Genera `ansible/inventory.ini` y `ansible/group_vars/all/infra.yml` |
+| `outputs.tf` | URL del ALB, IPs de las EC2, URL de ECR, endpoint de RDS |
+
+**Cómo se relacionan:** la VPC contiene las subredes; las públicas salen a Internet por el IGW y alojan el ALB
+y las EC2; las privadas alojan RDS sin ruta a Internet. El ALB reenvía al Target Group, que registra las 2 EC2
+y las revisa con `/health`. Los SG se referencian entre sí (ALB → app → BD) en lugar de usar rangos de IP.
+
+**State:** se guarda localmente en `terraform/terraform.tfstate`, excluido de Git porque contiene datos
+sensibles (p. ej. la contraseña de RDS). En producción se usaría un backend S3 cifrado con bloqueo.
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars   # completar
+terraform init
+terraform fmt && terraform validate
+terraform plan -out plan.tfplan
+terraform apply plan.tfplan
+terraform output
+terraform destroy                              # al terminar, para evitar costos
+```
 
 ## 4. Ansible
-_Pendiente (Fase 4)._
+
+Se ejecuta desde **WSL (Ubuntu)**. Terraform crea los recursos AWS; Ansible configura los servidores y despliega.
+
+| Rol | Qué hace |
+|---|---|
+| `common` | Paquetes base, zona horaria, usuario de sistema `notas` (sin shell) y directorio `/opt/notas` |
+| `hardening` | SSH sin root ni contraseña · UFW (deny por defecto) · Fail2ban · parches automáticos |
+| `docker` | Docker + `amazon-ecr-credential-helper` (autenticación a ECR con el rol IAM, sin claves) |
+| `deploy` | Genera `app.env` (0600), descarga la imagen de ECR, ejecuta el contenedor con `restart_policy: always` y verifica `/health` y `/health/db` |
+
+- **Inventario y variables:** Terraform genera `inventory.ini` y `group_vars/all/infra.yml`. Las variables propias
+  están en `group_vars/all/main.yml` y la contraseña de BD en `vault.yml`, cifrado con **Ansible Vault** (fuera de Git).
+- **Reinicio automático:** el servicio Docker está habilitado al arranque y el contenedor usa `restart_policy: always`.
+- **Idempotencia:** una segunda ejecución no hace cambios.
+
+```bash
+# En WSL
+cd /mnt/c/proyectos/notas-universidad/ansible
+cp group_vars/all/vault.yml.example group_vars/all/vault.yml   # misma clave de RDS
+ansible-vault encrypt group_vars/all/vault.yml
+./deploy.sh
+```
 
 ## 5. Diagrama de arquitectura
 _Pendiente._
@@ -93,9 +145,38 @@ _Pendiente._
 _Pendiente._
 
 ## 7. Seguridad y decisiones técnicas
-- La BD es compartida (PostgreSQL/RDS) para que ambas instancias muestren los mismos datos.
-- El contenedor corre sin privilegios de root.
-- Los secretos se pasan por variables de entorno; `.env`, `*.pem`, `*.tfstate` y `terraform.tfvars` están en `.gitignore`.
+
+**Red**
+- Único punto público: el ALB (puerto 80). Las EC2 aceptan el puerto 8000 **solo desde el SG del ALB**.
+- SSH (22) solo desde la IP del administrador (`admin_cidr`, validado para que nunca sea `0.0.0.0/0`).
+- RDS en subredes privadas sin ruta a Internet, `publicly_accessible = false`, solo accesible desde el SG de la app.
+
+**Linux (hardening con Ansible)**
+1. SSH: sin login de root, sin contraseñas (solo llave), `MaxAuthTries 3`, `AllowUsers ubuntu`.
+2. UFW: entrada denegada por defecto; solo 22 y 8000 (este último solo desde la VPC).
+3. Fail2ban protegiendo SSH.
+4. Actualizaciones automáticas de seguridad.
+
+**Credenciales e IAM**
+- Rol de EC2 con mínimo privilegio: ECR solo lectura + SSM. Las EC2 no guardan claves de AWS.
+- IMDSv2 obligatorio. Discos EBS y RDS cifrados.
+- Contraseña de BD: variable `sensitive` en Terraform y Ansible Vault. `.env`, `*.pem`, `*.tfstate`,
+  `terraform.tfvars`, `inventory.ini` y `vault.yml` están en `.gitignore`.
+
+**Contenedores**
+- Imagen oficial `python:3.12-slim`, escaneo de vulnerabilidades en ECR, usuario no root.
+- Contenedor `read_only`, `cap_drop: ALL`, `no-new-privileges`, logs con rotación.
+- `network_mode: host` para que UFW filtre el puerto (Docker con puertos publicados se salta UFW) y para que
+  la app muestre el hostname de la EC2 que respondió.
+
+**Decisiones y limitaciones**
+- `/health` no depende de la BD: si RDS falla, el ALB no saca de servicio ambas instancias a la vez.
+- **HTTP sin HTTPS:** el proyecto no usa dominio propio. En producción: dominio en Route 53, certificado ACM,
+  listener 443 y redirección 80 → 443.
+- **RDS Single-AZ** por costo: es un punto único de fallo de la BD. Mejora: `db_multi_az = true`.
+- EC2 en subredes públicas (con SG restrictivo) para evitar el costo de NAT Gateway. Mejora: subredes privadas + NAT + Session Manager.
+- State de Terraform local. Mejora: backend S3 cifrado con bloqueo.
+- Usuario IAM `terraform-admin` con `AdministratorAccess` para aprovisionar; en producción, permisos acotados.
 
 ## 8. Uso de IA
 Se usó Claude (Anthropic) como apoyo para estructurar el plan del proyecto y generar el código base

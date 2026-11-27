@@ -1,0 +1,10 @@
+# Playbook principal: configura las EC2 y despliega la app.
+# Terraform crea los recursos AWS; Ansible configura los servidores.
+- name: Configurar servidores y desplegar Registro de Notas
+  hosts: app
+  become: true
+  roles:
+    - common      # paquetes, usuario y directorios
+    - hardening   # SSH, UFW, Fail2ban, actualizaciones automáticas
+    - docker      # Docker + login a ECR con el rol IAM
+    - deploy      # contenedor de la app con reinicio automático

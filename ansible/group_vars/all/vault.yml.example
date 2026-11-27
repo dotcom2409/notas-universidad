@@ -1,0 +1,4 @@
+# 1) Copia este archivo:   cp vault.yml.example vault.yml
+# 2) Pon la MISMA contraseña de RDS que usaste en terraform.tfvars
+# 3) Cífralo:              ansible-vault encrypt vault.yml
+vault_db_password: "CAMBIAR-esta-clave-123"

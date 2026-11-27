@@ -1,0 +1,27 @@
+# Variables NO secretas. Las de infraestructura (db_host, ecr_repo, vpc_cidr...)
+# las genera Terraform en group_vars/all/infra.yml.
+
+timezone: America/Bogota
+
+# Usuario y directorio de trabajo de la aplicación
+app_user: notas
+app_dir: /opt/notas
+
+# Imagen a desplegar (tag subido a ECR)
+image_tag: "1.0.0"
+container_name: notas-app
+app_version: "{{ image_tag }}"
+
+# La contraseña viene de vault.yml (cifrado con ansible-vault)
+db_password: "{{ vault_db_password }}"
+
+# Hardening SSH
+ssh_allowed_users: [ubuntu]
+fail2ban_bantime: 3600
+fail2ban_maxretry: 5
+
+common_packages:
+  - ca-certificates
+  - curl
+  - htop
+  - unattended-upgrades

@@ -1,0 +1,12 @@
+# Copia como terraform.tfvars (excluido de Git) y completa.
+aws_region    = "us-east-2"
+instance_type = "t3.micro"
+
+# Tu IP pública + /32  (obtenla con: curl.exe ifconfig.me)
+admin_cidr = "190.0.0.1/32"
+
+# Contenido completo de ~/.ssh/notas-aws.pub (generada en WSL)
+public_key = "ssh-ed25519 AAAA... johan@pc"
+
+# Contraseña de RDS: mín. 8 caracteres, sin / @ " ni espacios
+db_password = "CAMBIAR-esta-clave-123"

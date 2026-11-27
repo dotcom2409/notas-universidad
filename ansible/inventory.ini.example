@@ -1,0 +1,9 @@
+# Ejemplo. El inventario real (inventory.ini) lo genera Terraform.
+[app]
+app1 ansible_host=3.x.x.x az=us-east-2a
+app2 ansible_host=18.x.x.x az=us-east-2b
+
+[app:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=~/.ssh/notas-aws
+ansible_python_interpreter=/usr/bin/python3

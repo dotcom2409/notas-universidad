@@ -1,0 +1,57 @@
+- name: Generar archivo de configuración de la app (solo root puede leerlo)
+  ansible.builtin.template:
+    src: app.env.j2
+    dest: "{{ app_dir }}/app.env"
+    owner: root
+    group: root
+    mode: "0600"
+  register: deploy_env_file
+
+- name: Descargar imagen desde ECR
+  ansible.builtin.command: docker pull {{ ecr_repo }}:{{ image_tag }}
+  register: deploy_pull
+  changed_when: "'Downloaded newer image' in deploy_pull.stdout"
+
+- name: Ejecutar contenedor de la aplicación
+  community.docker.docker_container:
+    name: "{{ container_name }}"
+    image: "{{ ecr_repo }}:{{ image_tag }}"
+    state: started
+    restart_policy: always          # vuelve a arrancar tras reinicio de la EC2
+    recreate: "{{ deploy_env_file.changed }}"
+    # Red del host: así UFW filtra el puerto y el hostname mostrado es el de la EC2
+    network_mode: host
+    env_file: "{{ app_dir }}/app.env"
+    # Contenedor sin privilegios innecesarios
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opts:
+      - no-new-privileges:true
+    log_driver: json-file
+    log_options:
+      max-size: "10m"
+      max-file: "3"
+
+- name: Esperar a que la app responda en /health
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ app_port }}/health"
+    return_content: true
+  register: deploy_health
+  retries: 15
+  delay: 4
+  until: deploy_health.status == 200
+
+- name: Verificar conexión a la base de datos
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ app_port }}/health/db"
+  register: deploy_health_db
+  retries: 5
+  delay: 4
+  until: deploy_health_db.status == 200
+
+- name: Resultado
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }} ({{ az | default('') }}) OK -> {{ deploy_health.json }}"

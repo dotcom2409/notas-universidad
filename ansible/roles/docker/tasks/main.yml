@@ -1,0 +1,26 @@
+- name: Instalar Docker y el helper de credenciales de ECR
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - amazon-ecr-credential-helper
+      - python3-docker
+    state: present
+
+- name: Docker activo y habilitado al arrancar (necesario para el reinicio automático)
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Crear directorio de configuración de Docker para root
+  ansible.builtin.file:
+    path: /root/.docker
+    state: directory
+    mode: "0700"
+
+# Autenticación a ECR usando el ROL IAM de la instancia (sin claves guardadas)
+- name: Configurar credential helper de ECR
+  ansible.builtin.copy:
+    dest: /root/.docker/config.json
+    mode: "0600"
+    content: "{{ {'credHelpers': {ecr_registry: 'ecr-login'}} | to_nice_json }}"
